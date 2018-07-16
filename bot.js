@@ -46,14 +46,19 @@ MongoClient.connect('mongodb://xarbon_bot:xarbon1@ds139331.mlab.com:39331/heroku
 			    lastName: lname,
 			    email: '',
 			    twitterUsn: '',
-			    nemAddress: ''
+			    nemAddress: '',
+			    fblike: '',
+			    lilike:'',
+			    added: 0,
+			    addedPerson: []
 			  },(err, result) => {
 			    if(err){
 			      return console.log('Unable to insert user', err);
 			    }
 
 			    console.log(result.ops);
-			    console.log('User is added');
+			    console.log(`User ${fname} is Added`);
+
 			  });
 		}
 	},(err) => {
@@ -206,7 +211,7 @@ MongoClient.connect('mongodb://xarbon_bot:xarbon1@ds139331.mlab.com:39331/heroku
 			"Type /upfirstname <i>Your First name</i> \n" +
 			"Type /uplastname <i>Your Last name</i> \n" +
 			"Type /upemail <i>Your Email</i> \n" +
-			"Type /uptwitter <i>Your Twitter Handle</i> \n" +
+			"Type /uptwitter <i>Your Twitter Username</i> \n" +
 			"Type /upnemaddress <i>Your NEM Address</i> \n",
 			{
 				parse_mode : 'html'
@@ -229,6 +234,20 @@ MongoClient.connect('mongodb://xarbon_bot:xarbon1@ds139331.mlab.com:39331/heroku
 	       if (!files.length) {
 	           var path = api.downloadFile(photoId, dir).then(function (path) {
 					console.log(path);
+					db.collection('xarbon_users').findOneAndUpdate({
+						telegramId: fromId
+					},{
+						$set: {
+							fblike: 'yes'
+						}
+					},{
+						returnOriginal: false
+					}).then((result) => {
+						console.log(result);
+						
+					},(err) => {
+						console.log('unable to update fblike');
+					});
 					api.sendMessage(fromId,"FB screenshot has been received! Please press /Twitter to proceed."
 						
 						);
@@ -236,6 +255,20 @@ MongoClient.connect('mongodb://xarbon_bot:xarbon1@ds139331.mlab.com:39331/heroku
 	       }else{
 	       		var path = api.downloadFile(photoId, dir).then(function (path) {
 					console.log(path);
+					db.collection('xarbon_users').findOneAndUpdate({
+						telegramId: fromId
+					},{
+						$set: {
+							lilike: 'yes'
+						}
+					},{
+						returnOriginal: false
+					}).then((result) => {
+						console.log(result);
+						
+					},(err) => {
+						console.log('unable to update lilike');
+					});
 					api.sendMessage(fromId,"LinkedIn screenshot has been received! Please press /Refer to proceed."
 						
 						);
@@ -377,6 +410,74 @@ MongoClient.connect('mongodb://xarbon_bot:xarbon1@ds139331.mlab.com:39331/heroku
 		console.log('unable to update nem address');
 	});
 
+  });
+
+  // SEARCH
+  api.onText(/\/search (.+)/, function(msg, match) {
+  	var search = match[1];
+	var fromId = msg.from.id;
+
+	if(fromId === 413363979 || fromId === 443754890){
+		
+		db.collection('xarbon_users').find({
+			userName: search
+		}).toArray().then((user) => {
+			api.sendMessage(fromId,"User Found: \n\n" +
+				`Username: ${user[0].userName} \n` +
+				`First Name: ${user[0].firstName} \n` +
+				`Last Name: ${user[0].lastName} \n` +
+				`email: ${user[0].email} \n` +
+				`Twitter Username: ${user[0].twitterUsn} \n` +
+				`NEM Address: ${user[0].nemAddress} \n` +
+				`Liked FB?: ${user[0].fblike} \n` +
+				`Liked LinkedIn?: ${user[0].lilike} \n` +
+				`Added Person(s) to Group: ${user[0].added} \n` +
+				`Added persons: ${user[0].addedPerson} \n`
+				);
+		},(err) => {
+			console.log('Unable to fetch user', err);
+		});
+	}else{
+		api.sendMessage(fromId,'You are not authorized!');
+	}
+
+  });
+
+  api.on('new_chat_members', (user) => {
+  	var fromId = user.from.id
+  	var addedUser = user.new_chat_member.username;
+  	var id = new  ObjectID();
+
+  	console.log(user.new_chat_member.first_name);
+  	db.collection('xarbon_users').findOneAndUpdate({
+		telegramId: fromId
+	},{
+		$inc: {
+			added: +1
+		}
+	},{
+		returnOriginal: false
+	}).then((result) => {
+		console.log(result);
+						
+	},(err) => {
+		console.log('unable to update added persons');
+	});
+
+  	db.collection('xarbon_users').findOneAndUpdate({
+		telegramId: fromId
+	},{
+		$push: {
+			addedPerson: [addedUser]
+		}
+	},{
+		returnOriginal: false
+	}).then((result) => {
+		console.log(result);
+						
+	},(err) => {
+		console.log('unable to update added persons');
+	});
   });
 });
 
